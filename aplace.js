@@ -175,6 +175,7 @@ function setupMap(censusData){
                  getMatches(gidShort,censusData,map,code,2)
                 
             }
+        absoluteMatches(map)
             
         })
     });
@@ -228,7 +229,7 @@ function getMatches(gid,census,map,code,threshold){
     var text2 = translateStats(filteredStats,threshold)
     var click = 0
   
-    d3.select("#title").html("A PLACE: "+gidName)
+    d3.select("#title").html("THIS PLACE: "+gidName)
 
     d3.select("#text").append("div")
         .attr("class","clickText text_"+code)
@@ -295,7 +296,7 @@ var click = 0
               var threshold = sliderPosition                  
                 var filteredData = filterByData(census,threshold,category,value)
                 filterMap(filteredData,map,code)
-              
+               absoluteMatches(map)
                 var filteredStats = calculateFiltered(filteredData,category)
               
                 var text2 = translateStats(filteredStats,threshold)
@@ -400,6 +401,8 @@ function filterMap(filteredData,map,code){
         var gid = filteredData[i]["Gid"].replace("14000US","1400000US")
         gids.push(gid)
     }
+    totalMatches[code]=gids
+    
     var filter = ["in","AFFGEOID"].concat(gids)
     map.setFilter("tracts_filtered_west"+"_"+code, filter);
     map.setFilter("tracts_filtered_east"+"_"+code, filter);
@@ -450,12 +453,51 @@ function filterByData(census,threshold,category,value){
       //  }
     })
  //   console.log(withinThreshold)
-    totalMatches[category]=withinThreshold
-    //console.log(totalMatches)
-    absoluteMatches(totalMatches)
-    
+    //console.log(totalMatches)    
     return withinThreshold
 }
-function absoluteMatches(totalMatches){
+function absoluteMatches(map){
+    var matchesArray =[]
+    for(var i in totalMatches){
+    //    console.log(totalMatches[i])
+        matchesArray = matchesArray.concat(totalMatches[i])
+    }
+    matchesArray.sort();
+    var arrayCounts = {}
     
+   // console.log(matchesArray)
+    
+        var current = null;
+        var cnt = 0;
+        for (var i = 0; i < matchesArray.length; i++) {
+            if (matchesArray[i] != current) {
+                if (cnt > 0) {
+                    var arrayCountsKeys = Object.keys(arrayCounts)
+                   // console.log([arrayCountsKeys,cnt])
+                    var cntKey = String(cnt)
+                    if (arrayCountsKeys.indexOf(cntKey)==-1){
+                        arrayCounts[cntKey]=[]
+                        arrayCounts[cntKey].push(current)
+                    }else{
+                        arrayCounts[cntKey].push(current)
+                    }
+                }
+                current = matchesArray[i];
+                cnt = 1;
+            } else {
+                cnt++;
+            }
+        }
+        
+        
+        
+        var newText = ""
+        for(var t in arrayCounts){
+            var count = String(t)
+            if(t == 6){ count = String(t-1)}
+            newText += arrayCounts[String(t)].length+" places in "+ String(t)+" ways, "
+        }
+        
+        d3.select("#title2").html("is like "+newText)
+        
 }
