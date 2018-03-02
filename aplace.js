@@ -172,8 +172,7 @@ function setupMap(censusData){
                addTracts(map,censusData,"east",code)
                 filterTargetGeo(map,censusData,gid,code)
                  var gidShort = gid.replace("1400000US","14000US")
-                 getMatches(gidShort,censusData,map,code,2)
-                
+                 getMatches(gidShort,censusData,map,code,2)                
             }
         absoluteMatches(map)
             
@@ -409,7 +408,7 @@ function filterMap(filteredData,map,code){
 }
 
 function translateStats(filteredStats,threshold){
-    text = filteredStats["tracts"]+" other tracts are within ±"+Math.round(threshold*100)/100+"%"
+    text = filteredStats["tracts"]+" tracts are within ±"+Math.round(threshold*100)/100+"%"
     text = text+" or between "+Math.round(filteredStats["min"]*100)/100+" and "+Math.round(filteredStats["max"]*100)/100+"<br/>"
     text = text+"containing: "+filteredStats["T002_001"]+" people, &"+filteredStats["T002_003"]+" sq.mi."
     return text
