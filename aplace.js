@@ -6,7 +6,7 @@
 
 $(function() {
   	queue()
-      .defer(d3.csv,"census_percent_2places.csv")
+      .defer(d3.csv,"census_percent_2places_selected.csv")
       .defer(d3.csv,"geo_names.csv")
       .defer(d3.json,"census_keys_short.json")
       .defer(d3.json,"deviation.json")
@@ -23,7 +23,8 @@ var colors = ["#a5573a",
 "#c69442",
 "#4bb193",
 "#cb5842"]
-var categoriesToMap =["T002_002","T007_002","T007_013","T056_002","T056_017","T157_001"]
+//var categoriesToMap =["T002_002","T007_002","T007_013","T056_002","T056_017","T157_001"]
+var categoriesToMap =["T002_002","T056_002","T056_017","T157_001"]
 var dataDictionary = {}
 var clickCount = 0
 var currentCategory = "T002_002"
@@ -87,7 +88,6 @@ function dataDidLoad(error,censusData,geoNames,keys,deviationFile,minMaxFile,his
     tractNames = makeGeoNamesDict(geoNames)
     minMax = minMaxFile
     histogram = histogramFile
-    //var percentFormatted = formatCensusAsPercents(censusData)
     var notDropdown = ["T002_001","T002_003","T004_001","T005_001","T007_001","T013_001","T025_001","T030_001","T050_001","T053_001","T056_001","T078_001","T080_001","T081_001","T094_001","T108_001","T182_001","T139_001","T145_001"]
     
    
@@ -154,15 +154,17 @@ function setupMap(censusData){
             
             d3.selectAll(".clickText").remove()
             d3.selectAll(".clickText2").remove()
-           var layers = map.getStyle().layers
-           for(var l in layers){
+            var layers = map.getStyle().layers
+            for(var l in layers){
                var layerName = layers[l].id
-               if(layerName.split("_")[0]=="tract"){
+               if(layerName.split("_")[1]=="filtered" ||layerName.split("_")[1]=="highlight" ||layerName.split("_")[1]=="matches"){
                    map.removeLayer(layerName)
                }
            }
+            console.log(layers)
                 
             var gid = e.features[0].properties[ "AFFGEOID"]
+            filterTargetGeo(map,gid,code)
             
             for(var i in categoriesToMap){
                 
@@ -170,7 +172,6 @@ function setupMap(censusData){
                 var title = dataDictionary[code]
                addTracts(map,censusData,"west",code)
                addTracts(map,censusData,"east",code)
-                filterTargetGeo(map,censusData,gid,code)
                  var gidShort = gid.replace("1400000US","14000US")
                  getMatches(gidShort,censusData,map,code,2)                
             }
@@ -180,31 +181,41 @@ function setupMap(censusData){
     });
 }
 function addTracts(map,censusData,ew,code){
-    map.addLayer({
-                    "id": "tracts_highlight_"+ew+"_"+code,
-                    "type": "fill",
-                   "source": 'tracts'+ew,
-                    "paint": {
-                        "fill-outline-color": colors[categoriesToMap.indexOf(code)],
-                            "fill-color": colors[categoriesToMap.indexOf(code)],
-                    },
-                    "filter": ["in", "FIPS", ""]
-                })
-             map.addLayer({
-                     "id": "tracts_filtered_"+ew+"_"+code,
-                     "type": "fill",
-                    "source": 'tracts'+ew,
-                     "paint": {
-                         "fill-outline-color": colors[categoriesToMap.indexOf(code)],
-                             "fill-color": colors[categoriesToMap.indexOf(code)],
-                         "fill-opacity":.2
-                     },
-                     "filter": ["in", "FIPS", ""]
-                 },"road_major_label")      
+     map.addLayer({
+             "id": "tracts_filtered_"+ew+"_"+code,
+             "type": "fill",
+            "source": 'tracts'+ew,
+             "paint": {
+                 "fill-outline-color": colors[categoriesToMap.indexOf(code)],
+                     "fill-color": colors[categoriesToMap.indexOf(code)],
+                 "fill-opacity":.2
+             },
+             "filter": ["in", "FIPS", ""]
+         },"road_major_label")      
 } 
-function filterTargetGeo(map,censusData,gid,code) {       
-             map.setFilter("tracts_highlight_east_"+code, ["==",  "AFFGEOID", gid]);
-             map.setFilter("tracts_highlight_west_"+code, ["==",  "AFFGEOID", gid]);
+function filterTargetGeo(map,gid,code) {  
+      map.addLayer({
+                      "id": "tracts_highlight_west_clicked",
+                      "type": "fill",
+                     "source": 'tractswest',
+                      "paint": {
+                          "fill-outline-color": "#000",
+                          "fill-color":"#000",
+                      },
+                      "filter": ["in", "FIPS", ""]
+                  })     
+      map.addLayer({
+                      "id": "tracts_highlight_east_clicked",
+                      "type": "fill",
+                     "source": 'tractseast',
+                      "paint": {
+                          "fill-outline-color": "#000",
+                              "fill-color": "#000",
+                      },
+                      "filter": ["in", "FIPS", ""]
+                  }) 
+     map.setFilter("tracts_highlight_east_clicked", ["==",  "AFFGEOID", gid]);
+     map.setFilter("tracts_highlight_west_clicked", ["==",  "AFFGEOID", gid]);
 }
 
 function getMatches(gid,census,map,code,threshold){
@@ -220,10 +231,17 @@ function getMatches(gid,census,map,code,threshold){
         }
     })
     var value= parseFloat(matchedId[0][category])
+  //  var minT = value*.9
+  //  var maxT = value*1.1
+
+    var maxT = (minMax[category].max-value)/10+value
+    var minT = value-(value-minMax[category].min)/10
+    
     var gidName = tractNames[matchedId[0].Gid]
-    var filteredData = filterByData(census,threshold,category,value)
+    var filteredData = filterByData(census,maxT,minT,category,value)
+    
     var filteredStats = calculateFiltered(filteredData,category)
-    var text = "<strong>"+value+" "+dataDictionary[code]
+    var text = "<strong>"+dataDictionary[code]
     +"</strong><br/>"
     var text2 = translateStats(filteredStats,threshold)
     var click = 0
@@ -241,36 +259,94 @@ function getMatches(gid,census,map,code,threshold){
         .html(text2)
         .style("color",colors[categoriesToMap.indexOf(code)])
         
-    slider(gid,value,category,map,census,code)
+    slider(gid,value,category,map,census,code,maxT,minT)
     //histo(gid,value,category)  
     filterMap(filteredData,map,code)
 }
-function slider(gid,value,category,map,census,code){
-    var margin = {right: 20, left: 10}
+function slider(gid,value,category,map,census,code,maxT,minT){
+    var margin = {right: 40, left: 40}
     var width = $("#text").innerWidth()
-    var svg = d3.select(".slider_"+code).append("svg").attr("width",width-margin.left).attr("height",30)
-    var width = +svg.attr("width") - margin.left - margin.right
-    var height = +svg.attr("height");
+    var svg = d3.select(".slider_"+code)
+        .append("svg")
+        .attr("width",width-margin.left)
+        .attr("height",30)
+        .attr("transform","translate("+margin.right+","+0+")")
+    var svgwidth = +svg.attr("width") - margin.left - margin.right
+    var svgheight = +svg.attr("height");
     var max = minMax[category].max
-    var max = minMax[category].min
-    var sliderRange = max/value
-    var x = d3.scaleLinear()
-        .domain([1, 100])
-        .range([0, width])
-        .clamp(true);
-var click = 0
-    var slider = svg.append("g")
+    var min = minMax[category].min
+    var x = d3.scaleLinear().domain([min, max]).range([0, svgwidth]).clamp(true);
+    var xR = d3.scaleLinear().domain([value, max]).range([x(value), svgwidth]).clamp(true);
+    var xL = d3.scaleLinear().domain([min, value]).range([0, x(value)]).clamp(true);
+    
+    var minLabel = svg.append("text")
+                    .text(min)
+                    .attr("x",function(){return x(min)})
+                    .attr("y",30)        
+    var maxLabel = svg.append("text")
+                    .text(max)
+                    .attr("x",function(){return x(max)})
+                    .attr("y",30)    
+                    .attr("text-anchor","end")
+    
+    var valueLabel = svg.append("text")
+                    .text(value)
+                    .attr("x",function(){return x(value)})
+                    .attr("y",8)    
+                    .attr("text-anchor","start")
+                    .style("fill",colors[categoriesToMap.indexOf(code)])
+        
+    var sliderPositionR = x.invert(maxT)
+    var sliderPositionL = x.invert(minT)
+      
+    var valueMarker = svg.append("rect").attr("height",10).attr("width",2)
+        .attr("x",x(value)-1).attr("y",10)
+        .style("fill",colors[categoriesToMap.indexOf(code)])
+    
+    var sliderHightlightL = svg.append("rect")
+        .attr("class","sliderHighlight")
+        .attr("height",10)
+        .attr("width",x(sliderPositionL))
+        .attr("x",x(value)-x(sliderPositionL))//x(sliderPositionL))
+        .attr("y",10)
+        .style("fill",colors[categoriesToMap.indexOf(code)])
+        .style("opacity",.5)
+    
+    var sliderHightlightR = svg.append("rect")
+        .attr("class","sliderHighlight")
+        .attr("height",10)
+        .attr("width",x(sliderPositionR))
+        .attr("x",x(value))//x(sliderPositionL))
+        .attr("y",10)
+        .style("fill",colors[categoriesToMap.indexOf(code)])
+        .style("opacity",.5)
+    
+    var sliderR = svg.append("g")
         .attr("class", "slider")
-        .attr("transform", "translate(" + 0 + "," + height / 2 + ")");
-    var handle = slider.insert("circle", ".track-overlay")
+        .attr("transform", "translate(" + 0 + "," + svgheight / 2 + ")");
+        
+    var sliderL = svg.append("g")
+        .attr("class", "slider")
+        .attr("transform", "translate(" + 0 + "," + svgheight / 2 + ")");
+       
+    var handleR = sliderR.insert("circle", ".track-overlay")
         .attr("class", "handle")
         .attr("r", 5)
         .style("fill",colors[categoriesToMap.indexOf(code)])
+        .attr("cx", x(value)+x(sliderPositionR))
         
-    slider.append("line")
-        .attr("class", "track")
-        .attr("x1", x.range()[0])
-        .attr("x2", x.range()[1])
+    var handleL = sliderL.insert("circle", ".track-overlay")
+        .attr("class", "handle")
+        .attr("r", 5)
+        .style("fill",colors[categoriesToMap.indexOf(code)])
+        .attr("cx", x(value)-x(sliderPositionL))   
+        
+        
+    
+    sliderL.append("line")
+        .attr("class", "trackL")
+        .attr("x1", xL.range()[0])
+        .attr("x2", xL.range()[1])
         .select(function() { 
             return this.parentNode.appendChild(this.cloneNode(true)); 
         })
@@ -279,54 +355,61 @@ var click = 0
             return this.parentNode.appendChild(this.cloneNode(true)); 
         })
         .attr("class", "track-overlay")
-        .attr("clickCount",click)
         .call(d3.drag()
-//            .on("start.interrupt", function() { 
-//                slider.interrupt(); 
-//            })
             .on("start drag", function() { 
-                
-                var sliderPosition = x.invert(d3.event.x)
-                handle.attr("cx", x(sliderPosition))
-                var currentClick = d3.select(this).attr("clickCount")  
-          // })
-          // .on("end",function(){
-            var sliderPosition = x.invert(d3.event.x)
-              var threshold = sliderPosition                  
-                var filteredData = filterByData(census,threshold,category,value)
-                filterMap(filteredData,map,code)
-               absoluteMatches(map)
-                var filteredStats = calculateFiltered(filteredData,category)
-              
-                var text2 = translateStats(filteredStats,threshold)
-                d3.select(".text2_"+code).html(text2)
+                sliderPositionL = x.invert(d3.event.x)
+                if(sliderPositionL>value){
+                    sliderPositionL = value
+                }
+                handleL.attr("cx", x(sliderPositionL)) 
+                sliderHightlightL.attr("x",xL(sliderPositionL)).attr("width",x(value)-xL(sliderPositionL))               
             })
-        );
-        
-        if(Object.keys(url.clicks).length<1){
-            var currentSliderValue=10
-        }else{
-            var currentSliderValue = url.clicks[click][1]
-        }
-    handle.attr("cx", x(currentSliderValue))
-        
-    slider.insert("g", ".track-overlay")
-        .attr("class", "ticks")
-        .attr("transform", "translate(0," + 18 + ")")
-        .selectAll("text")
-        .append("text")
-        .attr("text-anchor", "start")
-        .text("less")
-        .attr("y", 2)
-        .attr("x",10)
-        .append("text")
-        .attr("text-anchor", "end")
-        .text("more")
-        .attr("y", 2)
-        .attr("x",width-margin.left);
-    
-}
+            .on("end",function(){
+                var filteredData = filterByData(census,sliderPositionR,sliderPositionL,category,value)
+              //  console.log([sliderPositionR,sliderPositionL,filteredData.length])
+                filterMap(filteredData,map,code)
+                absoluteMatches(map)
+                var filteredStats = calculateFiltered(filteredData,category)
+                d3.select(".text2_"+code)
+                    .html(translateStats(filteredStats))
+                    .style("color",colors[categoriesToMap.indexOf(code)])
+            })
+        ); 
+    sliderR.append("line")
+        .attr("class", "trackR")
+        .attr("x1", xR.range()[0])
+        .attr("x2", xR.range()[1])
+        .select(function() { 
+            return this.parentNode.appendChild(this.cloneNode(true)); 
+        })
+        .attr("class", "track-inset")
+        .select(function() { 
+            return this.parentNode.appendChild(this.cloneNode(true)); 
+        })
+        .attr("class", "track-overlay")
+        .call(d3.drag()
+            .on("start drag", function() { 
+                sliderPositionR = x.invert(d3.event.x)
+                if(sliderPositionR<value){
+                    sliderPositionR = value
+                }
+                handleR.attr("cx", xR(sliderPositionR)) 
+                sliderHightlightR.attr("width",x(sliderPositionR)-x(value))      
+            })
+            .on("end",function(){
+                var filteredData = filterByData(census,sliderPositionR,sliderPositionL,category,value)
+                filterMap(filteredData,map,code)
+                absoluteMatches(map)
+                var filteredStats = calculateFiltered(filteredData,category)
 
+                d3.select(".text2_"+code)
+                    .html(translateStats(filteredStats))
+                    .style("color",colors[categoriesToMap.indexOf(code)])
+                
+            })
+        ); 
+          
+}
 function histo(gid,value,category){
     var array = new Array(100);
     var xmin = minMax[category].min
@@ -393,7 +476,6 @@ function histo(gid,value,category){
         .attr("fill",colors[clickCount%(colors.length-1)])
         .attr("opacity",.5)
 }
-
 function filterMap(filteredData,map,code){
     var gids = []
     for(var i in filteredData){
@@ -406,10 +488,8 @@ function filterMap(filteredData,map,code){
     map.setFilter("tracts_filtered_west"+"_"+code, filter);
     map.setFilter("tracts_filtered_east"+"_"+code, filter);
 }
-
-function translateStats(filteredStats,threshold){
-    text = filteredStats["tracts"]+" tracts are within ±"+Math.round(threshold*100)/100+"%"
-    text = text+" or between "+Math.round(filteredStats["min"]*100)/100+" and "+Math.round(filteredStats["max"]*100)/100+"<br/>"
+function translateStats(filteredStats){
+    text = filteredStats["tracts"]+" tracts are between "+Math.round(filteredStats["min"]*100)/100+" and "+Math.round(filteredStats["max"]*100)/100+"<br/>"
     text = text+"containing: "+filteredStats["T002_001"]+" people, &"+filteredStats["T002_003"]+" sq.mi."
     return text
 }
@@ -437,66 +517,75 @@ function calculateFiltered(filteredData,category){
     return formatted
 }
 
-function filterByData(census,threshold,category,value){
-   // console.log(threshold)
+function filterByData(census,max,min,category,value){
     var withinThreshold = census.filter(function(el){
-       // if(notPercentCategories.indexOf(category)==-1){//if it if in percents
-       //     if(Math.round(el[category])==Math.round(value)){
-       //         return el["Gid"]
-       //     }
-       // }else{
-            if(el[category]<value*(1+threshold/100) && el[category]>value*(1-threshold/100)){
-            //if(el[category]<value*(1+threshold/100) && el[category]>value*(1-threshold/100)){
+            if(el[category]<max && el[category]>min){
                 return el["Gid"]
             }
-      //  }
     })
- //   console.log(withinThreshold)
-    //console.log(totalMatches)    
     return withinThreshold
 }
 function absoluteMatches(map){
     var matchesArray =[]
     for(var i in totalMatches){
-    //    console.log(totalMatches[i])
         matchesArray = matchesArray.concat(totalMatches[i])
     }
     matchesArray.sort();
     var arrayCounts = {}
-    
-   // console.log(matchesArray)
-    
-        var current = null;
-        var cnt = 0;
-        for (var i = 0; i < matchesArray.length; i++) {
-            if (matchesArray[i] != current) {
-                if (cnt > 0) {
-                    var arrayCountsKeys = Object.keys(arrayCounts)
-                   // console.log([arrayCountsKeys,cnt])
-                    var cntKey = String(cnt)
-                    if (arrayCountsKeys.indexOf(cntKey)==-1){
-                        arrayCounts[cntKey]=[]
-                        arrayCounts[cntKey].push(current)
-                    }else{
-                        arrayCounts[cntKey].push(current)
-                    }
+
+    var current = null;
+    var cnt = 0;
+    for (var i = 0; i < matchesArray.length; i++) {
+        if (matchesArray[i] != current) {
+            if (cnt > 0) {
+                var arrayCountsKeys = Object.keys(arrayCounts)
+               // console.log([arrayCountsKeys,cnt])
+                var cntKey = String(cnt)
+                if (arrayCountsKeys.indexOf(cntKey)==-1){
+                    arrayCounts[cntKey]=[]
+                    arrayCounts[cntKey].push(current)
+                }else{
+                    arrayCounts[cntKey].push(current)
                 }
-                current = matchesArray[i];
-                cnt = 1;
-            } else {
-                cnt++;
             }
+            current = matchesArray[i];
+            cnt = 1;
+        } else {
+            cnt++;
         }
-        
-        
-        
-        var newText = ""
-        for(var t in arrayCounts){
-            var count = String(t)
-            if(t == 6){ count = String(t-1)}
-            newText += arrayCounts[String(t)].length+" places in "+ String(t)+" ways, "
-        }
-        
-        d3.select("#title2").html("is like "+newText)
-        
+    }
+    var newText = ""
+    for(var t in arrayCounts){
+        var count = String(t)
+        if(t == 6){ count = String(t-1)}
+        newText += arrayCounts[String(t)].length+" Tracts in "+ String(t)+" ways, "
+    }
+    d3.select("#title2").html("is like "+newText)
+ //   addTotalMatches(map)
+ //   var filter = ["in","AFFGEOID"].concat(arrayCounts[(Object.keys(arrayCounts)).length-1])
+ //  map.setFilter("tracts_matches_west", filter);
+ //  map.setFilter("tracts_matches_east", filter);
 }
+function addTotalMatches(map){
+    
+     map.addLayer({
+             "id": "tracts_matches_east",
+             "type": "fill",
+            "source": 'tractseast',
+             "paint": {
+                 "fill-outline-color": "rgba(0,0,0,.5)",
+                 "fill-color": "rgba(0,0,0,.5)",
+             },
+             "filter": ["in", "FIPS", ""]
+         },"road_major_label")    
+     map.addLayer({
+             "id": "tracts_matches_west",
+             "type": "fill",
+            "source": 'tractswest',
+             "paint": {
+                 "fill-outline-color": "rgba(0,0,0,.5)",
+                 "fill-color": "rgba(0,0,0,.5)",
+             },
+             "filter": ["in", "FIPS", ""]
+         },"road_major_label")      
+} 

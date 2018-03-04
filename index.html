@@ -43,16 +43,19 @@
   .geocoder-icon .geocoder-icon-search{
     
   }
-  .track {
-    stroke: #000;
-    stroke-opacity: 0.3;
-    stroke-width: 3px;
+  .trackR {
+    stroke: rgba(0,0,0,.3);
+    stroke-width: 5px;
+  }
+  .trackL {
+    stroke: rgba(0,0,0,.3);
+    stroke-width: 5px;
   }
   .track-overlay {
     pointer-events: stroke;
     stroke-width: 50px;
     stroke: transparent;
-    cursor: crosshair;
+    cursor: pointer;
   }  
 #text{
   position:absolute;
@@ -73,7 +76,10 @@
  }
 .clickText {
   margin:0px;
-  font-size:24px;
+  font-size:14px;
+}
+.handle{
+  cursor:pointer;
 }
 #title{
   font-size:24px;
