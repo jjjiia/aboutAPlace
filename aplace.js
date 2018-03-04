@@ -234,9 +234,14 @@ function getMatches(gid,census,map,code,threshold){
   //  var minT = value*.9
   //  var maxT = value*1.1
 
-    var maxT = (minMax[category].max-value)/10+value
-    var minT = value-(value-minMax[category].min)/10
+    var maxT = Math.round(value*1.2*100)/100//(minMax[category].max-value)/10+value
+    //if(code == "T002_002"){
+    //     maxTs
+    //}
+    var minT = Math.round(value*1/1.2*100)/100//value-(value-minMax[category].min)/10
     
+    console.log(value)
+    console.log([maxT,minT])
     var gidName = tractNames[matchedId[0].Gid]
     var filteredData = filterByData(census,maxT,minT,category,value)
     
@@ -306,8 +311,8 @@ function slider(gid,value,category,map,census,code,maxT,minT){
     var sliderHightlightL = svg.append("rect")
         .attr("class","sliderHighlight")
         .attr("height",10)
-        .attr("width",x(sliderPositionL))
-        .attr("x",x(value)-x(sliderPositionL))//x(sliderPositionL))
+    .attr("width",x(value)-x(minT))
+        .attr("x",x(minT))//x(sliderPositionL))
         .attr("y",10)
         .style("fill",colors[categoriesToMap.indexOf(code)])
         .style("opacity",.5)
@@ -315,7 +320,7 @@ function slider(gid,value,category,map,census,code,maxT,minT){
     var sliderHightlightR = svg.append("rect")
         .attr("class","sliderHighlight")
         .attr("height",10)
-        .attr("width",x(sliderPositionR))
+        .attr("width",x(maxT)-x(value))
         .attr("x",x(value))//x(sliderPositionL))
         .attr("y",10)
         .style("fill",colors[categoriesToMap.indexOf(code)])
@@ -333,13 +338,13 @@ function slider(gid,value,category,map,census,code,maxT,minT){
         .attr("class", "handle")
         .attr("r", 5)
         .style("fill",colors[categoriesToMap.indexOf(code)])
-        .attr("cx", x(value)+x(sliderPositionR))
+        .attr("cx", x(maxT))
         
     var handleL = sliderL.insert("circle", ".track-overlay")
         .attr("class", "handle")
         .attr("r", 5)
         .style("fill",colors[categoriesToMap.indexOf(code)])
-        .attr("cx", x(value)-x(sliderPositionL))   
+        .attr("cx", x(minT))   
         
         
     
@@ -363,8 +368,8 @@ function slider(gid,value,category,map,census,code,maxT,minT){
                 }
                 handleL.attr("cx", x(sliderPositionL)) 
                 sliderHightlightL.attr("x",xL(sliderPositionL)).attr("width",x(value)-xL(sliderPositionL))               
-            })
-            .on("end",function(){
+           // })
+           // .on("end",function(){
                 var filteredData = filterByData(census,sliderPositionR,sliderPositionL,category,value)
               //  console.log([sliderPositionR,sliderPositionL,filteredData.length])
                 filterMap(filteredData,map,code)
