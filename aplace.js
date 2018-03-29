@@ -15,14 +15,8 @@ $(function() {
       .await(dataDidLoad);
   })
 //var colors = ["#c1d098","#7dde49","#6b7b3e","#cbcf49","#69b95a","#d39433","#2679a7","#b38f60","#4a81e7","#6edc50","#56e1a6","#549735","#279564","#2367b7"]
-var colors = ["#a5573a",
-"#74b74b",
-"#4699b8",
-"#e19680",
-"#9d5b50",
-"#c69442",
-"#4bb193",
-"#cb5842"]
+//var colors = ["#a5573a","#74b74b","#4699b8","#e19680","#9d5b50","#c69442","#4bb193","#cb5842"]
+var colors = ["#4c7fd5","#db9b3a","#56ae6c","#ba4a4f"]
 //var categoriesToMap =["T002_002","T007_002","T007_013","T056_002","T056_017","T157_001"]
 var categoriesToMap =["T002_002","T056_002","T056_017","T157_001"]
 var dataDictionary = {}
@@ -119,7 +113,9 @@ function setupMap(censusData){
         updateUrl(map)
            
     })
-    map.on('load', function() {        
+    map.on('load', function() {   
+        d3.select(".mapboxgl-ctrl-bottom-left").remove()
+        d3.select(".mapboxgl-ctrl-bottom-right").remove()
         d3.select("#loader").remove()
         d3.select("#zoomOut")
         .on("mouseover",function(){
@@ -160,9 +156,7 @@ function setupMap(censusData){
                if(layerName.split("_")[1]=="filtered" ||layerName.split("_")[1]=="highlight" ||layerName.split("_")[1]=="matches"){
                    map.removeLayer(layerName)
                }
-           }
-            console.log(layers)
-                
+           }                
             var gid = e.features[0].properties[ "AFFGEOID"]
             filterTargetGeo(map,gid,code)
             
@@ -170,8 +164,8 @@ function setupMap(censusData){
                 
                 var code = categoriesToMap[i]
                 var title = dataDictionary[code]
-               addTracts(map,censusData,"west",code)
-               addTracts(map,censusData,"east",code)
+                  addTracts(map,censusData,"west",code)
+                   addTracts(map,censusData,"east",code)
                  var gidShort = gid.replace("1400000US","14000US")
                  getMatches(gidShort,censusData,map,code,2)                
             }
@@ -188,7 +182,7 @@ function addTracts(map,censusData,ew,code){
              "paint": {
                  "fill-outline-color": colors[categoriesToMap.indexOf(code)],
                      "fill-color": colors[categoriesToMap.indexOf(code)],
-                 "fill-opacity":.2
+                 "fill-opacity":.3
              },
              "filter": ["in", "FIPS", ""]
          },"road_major_label")      
@@ -240,8 +234,6 @@ function getMatches(gid,census,map,code,threshold){
     //}
     var minT = Math.round(value*1/1.2*100)/100//value-(value-minMax[category].min)/10
     
-    console.log(value)
-    console.log([maxT,minT])
     var gidName = tractNames[matchedId[0].Gid]
     var filteredData = filterByData(census,maxT,minT,category,value)
     
@@ -251,7 +243,7 @@ function getMatches(gid,census,map,code,threshold){
     var text2 = translateStats(filteredStats,threshold)
     var click = 0
   
-    d3.select("#title").html("THIS PLACE: "+gidName)
+    d3.select("#title2").html("This place, "+gidName)
 
     d3.select("#text").append("div")
         .attr("class","clickText text_"+code)
@@ -536,8 +528,7 @@ function absoluteMatches(map){
         matchesArray = matchesArray.concat(totalMatches[i])
     }
     matchesArray.sort();
-    var arrayCounts = {}
-
+    var arrayCounts = {}    
     var current = null;
     var cnt = 0;
     for (var i = 0; i < matchesArray.length; i++) {
@@ -560,16 +551,59 @@ function absoluteMatches(map){
         }
     }
     var newText = ""
+    
+    var maxMatches = Object.keys(arrayCounts)[Object.keys(arrayCounts).length-1]
+    var topMatches = arrayCounts[maxMatches]//.slice(0, 10)
+    d3.selectAll(".smallMaps").remove()
+    for(var j in topMatches){
+        var gid = topMatches[j]
+        var gName = tractNames[gid]
+        d3.select("#likePlaces").append("div").attr("class","smallMaps").attr("id","_"+gid)
+            .style("width","150px")
+            .style("height","250px")
+            .style("display","inline-block")
+         //   .style("border","1px solid black")
+        
+        d3.select("#_"+gid).append("div").attr("id","map_"+gid) 
+            .style("width","150px")
+            .style("height","150px")
+           // .style("border","1px solid black")
+        
+        d3.select("#_"+gid).append("div").attr("class","smallMapsCaption") 
+            .style("width","150px")
+            .style("height","100px")
+           // .style("border","1px solid black")
+            .html(tractNames[gid.replace("00000US","000US")].split(", ").join("<br/>"))
+        
+        drawSmallMap("map_"+gid)
+    }
     for(var t in arrayCounts){
         var count = String(t)
         if(t == 6){ count = String(t-1)}
         newText += arrayCounts[String(t)].length+" Tracts in "+ String(t)+" ways, "
     }
-    d3.select("#title2").html("is like "+newText)
- //   addTotalMatches(map)
- //   var filter = ["in","AFFGEOID"].concat(arrayCounts[(Object.keys(arrayCounts)).length-1])
- //  map.setFilter("tracts_matches_west", filter);
- //  map.setFilter("tracts_matches_east", filter);
+    d3.select("#title2").html("<br/> is like "+newText)
+    d3.selectAll(".leaflet-bottom").remove()
+    
+}
+function drawSmallMap(div){
+    L.mapbox.accessToken = 'pk.eyJ1IjoiampqaWlhMTIzIiwiYSI6ImNpbDQ0Z2s1OTN1N3R1eWtzNTVrd29lMDIifQ.gSWjNbBSpIFzDXU2X5YCiQ';
+    var map = L.mapbox.map(div)
+        .setView([40, -74.50], 13); //   var map = L.mapbox.map(div);
+    L.mapbox.styleLayer('mapbox://styles/jjjiia123/cjfcwpr9e7wzi2rmkp8al64h7').addTo(map);
+
+    map.removeControl(map.zoomControl);
+    //var map = new mapboxgl.Map({
+    //    container: div,
+    //    style: 'mapbox://styles/jjjiia123/cjdurroku5gm62sonjjyahriu',
+    //    center: [url.lng,url.lat],
+    //    minZoom: 4,
+    //    zoom: 12
+    //});
+    //map.on('load', function() {   
+    //    d3.select(".mapboxgl-ctrl-bottom-left").remove()
+    //    d3.select(".mapboxgl-ctrl-bottom-right").remove()
+    //})
 }
 function addTotalMatches(map){
     
